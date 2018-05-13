@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="src/utils.js"></script>
+
+<style>
+
+.nodeLabel {
+  fill: black;
+}
+
+.nodeCircle {
+  stroke: black;
+  stroke-width: 1.5px;
+}
+
+.linkLine {
+  stroke: #999;
+}
+
+</style>
+
+
+<script type="text/javascript">
+
+// const targetAuthor = ["Morand, pauline"]
+const targetAuthor = ['de Aguiar Vallim TQ', 'Tarling EJ']
+// const targetAuthor = ["Weiss JN", "Calmettes G"]
+
+
+const width = 600,
+    	height = 400;
+
+const svg = d3.select("body")
+	.append("svg")
+		.attr("width", width)
+		.attr("height", height)
+
+
+const linkStrengthScale = d3.scaleLinear()
+	.range([0.1, 1]);
+
+const sizeStrengthScale = d3.scaleLinear()
+	.range([-1, -5]);
+
+
+const simulation = d3.forceSimulation()
+	.force("link", d3.forceLink().id(d => d.id).strength(d => linkStrengthScale(+d.size)))
+	.force("charge", d3.forceManyBody().strength(d => sizeStrengthScale(+d.size)))
+	.force("center", d3.forceCenter(width / 2, height / 2));
+
+const authorGraph = getAuthorGraph(targetAuthor)
+authorGraph.then(graph => {
+
+  const nodeScale = d3.scaleLinear()
+    .range([2, 20])
+    .domain(d3.extent(graph.nodes, d => d.size))
+
+  const labelScale = d3.scaleLinear()
+    .range([0.4, 1])
+    .domain(d3.extent(graph.nodes, d => d.size))
+
+  const linkScale = d3.scaleLinear()
+    .range([0.01, 8])
+    .domain(d3.extent(graph.edges, d => d.size))
+
+  const opacityScale = d3.scaleLinear()
+    .range([0.3, 1])
+    .domain(d3.extent(graph.edges, d => d.size))
+
+  linkStrengthScale
+    .domain(d3.extent(graph.edges, d => d.size))
+
+  sizeStrengthScale
+    .domain(d3.extent(graph.nodes, d => d.size))
+
+  const linkLayer = svg.append("g")
+      .attr("class", "links")
+
+  const link = linkLayer.selectAll(".linkLine")
+    .data(graph.edges)
+    .enter()
+    .append("path")
+      .attr("class", "linkLine")
+      .attr("stroke-width", d => linkScale(d.size))
+      .attr("fill", "none")
+      .attr("stroke-opacity", d => opacityScale(d.size))
+
+  const nodeLayer = svg.append("g")
+      .attr("class", "nodeLayer")
+  
+  const nodeG = nodeLayer.selectAll(".node")
+    .data(graph.nodes)
+    .enter()
+    .append("g")
+      .attr("class", "node")
+    .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+  nodeG.append("circle")
+    .attr("class", "nodeCircle")
+    .attr("r", d => nodeScale(d.size))
+    // .attr("fill", d => raceColor(d.raceType))
+    .attr("fill", "gray")
+    
+
+  nodeG.append("text")
+    .attr("class", "nodeLabel")
+      .text(d => d.id)
+      .attr("dx", 0)
+      .attr("dy", 15)
+      .style("text-anchor", "middle")
+      .style("font-size", d => `${labelScale(d.size)}em`);
+
+  simulation
+    .nodes(graph.nodes)
+    .on("tick", ticked);
+
+  simulation.force("link")
+    .links(graph.edges);
+
+  function ticked() {
+    link
+      .attr("d", d => {
+        const dx = d.target.x - d.source.x,
+              dy = d.target.y - d.source.y,
+              dr = Math.sqrt(dx * dx + dy * dy);
+        return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+
+      });
+
+    nodeG
+      .attr("transform", d => {
+        // keep the node within the boundaries of the svg
+        if (d.x < 0) {
+          d.x = 0
+        };
+        if (d.x > width) {
+          d.x = width
+        };
+        if (d.y < 0) {
+          d.y = 0
+        };
+        if (d.y > height) {
+          d.y = height
+        };
+        return `translate(${d.x}, ${d.y})`
+      })
+  }
+  console.log("Enjoy!")
+});
+
+function dragstarted(d) {
+  if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(d) {
+  d.fx = d3.event.x;
+  d.fy = d3.event.y;
+}
+
+function dragended(d) {
+  if (!d3.event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+
+</script>
+</body>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="src/utils.js"></script>
+
+<style>
+
+.nodeLabel {
+  fill: black;
+}
+
+.nodeCircle {
+  stroke: black;
+  stroke-width: 1.5px;
+}
+
+.linkLine {
+  stroke: #999;
+}
+
+</style>
+
+
+<script type="text/javascript">
+
+// const targetAuthor = ["Morand, pauline"]
+const targetAuthor = ['de Aguiar Vallim TQ', 'Tarling EJ']
+// const targetAuthor = ["Weiss JN", "Calmettes G"]
+
+
+const width = 600,
+    	height = 400;
+
+const canvas = d3.select("body").append("canvas")
+	.attr("width", width)
+	.attr("height", height);
+
+const context = canvas.node()
+	.getContext("2d");
+
+const linkStrengthScale = d3.scaleLinear()
+	.range([0.01, 0.09]);
+
+const sizeStrengthScale = d3.scaleLinear()
+	.range([-1, -5]);
+
+
+const simulation = d3.forceSimulation()
+	.force("link", d3.forceLink().id(d => d.id).strength(d => linkStrengthScale(+d.size)))
+	.force("charge", d3.forceManyBody().strength(d => sizeStrengthScale(+d.size)))
+	.force("center", d3.forceCenter(width / 2, height / 2));
+
+const authorGraph = getAuthorGraph(targetAuthor)
+authorGraph.then(graph => {
+
+  const nodeScale = d3.scaleLinear()
+    .range([2, 20])
+    .domain(d3.extent(graph.nodes, d => d.size))
+
+  const labelScale = d3.scaleLinear()
+    .range([0.4, 1])
+    .domain(d3.extent(graph.nodes, d => d.size))
+
+  const linkScale = d3.scaleLinear()
+    .range([0.01, 8])
+    .domain(d3.extent(graph.edges, d => d.size))
+
+  const opacityScale = d3.scaleLinear()
+    .range([0.3, 1])
+    .domain(d3.extent(graph.edges, d => d.size))
+
+  linkStrengthScale
+    .domain(d3.extent(graph.edges, d => d.size))
+
+  sizeStrengthScale
+    .domain(d3.extent(graph.nodes, d => d.size))
+
+  
+
+  simulation
+    .nodes(graph.nodes)
+    .on("tick", ticked);
+
+  simulation.force("link")
+    .links(graph.edges);
+
+
+  function ticked() {
+    context.clearRect(0, 0, width, height);
+
+    // draw links
+    context.strokeStyle = "#ccc";
+    context.beginPath();
+    graph.edges.forEach(d => {
+      context.moveTo(d.source.x, d.source.y);
+      context.lineTo(d.target.x, d.target.y);
+    });
+    context.stroke();
+
+    // draw nodes
+    context.fillStyle = "steelblue";
+    context.beginPath();
+    graph.nodes.forEach(d => {
+      drawNode(d, nodeScale)
+    });
+    context.fill();
+  }
+
+
+
+  console.log("Enjoy!")
+});
+
+function drawNode(d, nodeScale) {
+  context.moveTo(d.x, d.y);
+  context.arc(d.x, d.y, nodeScale(d.size), 0, 2 * Math.PI);
+  context.fillText(d.id, d.x+10, d.y+3);
+}
+
+
+</script>
+</body>
