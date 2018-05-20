@@ -1,10 +1,32 @@
-async function getPubIdsforAuthor(author) {
+// Only authors authorized as Pubmed query
+async function getPubIdsforAuthor(author, limit=150) {
 	// Return a list of publications IDs for the given author
-	const path = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${author}[author]&retmode=json`
+	const path = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${author}[author]&&retmax=${limit}&retmode=json`
 	const idList = await d3.json(path).then(data => data.esearchresult.idlist);
 	return idList
 }
 
+async function getCitationsForAuthor(author, limit=150){
+	const idList = await getPubIdsforAuthor(author, limit).then(result => result)
+	const publications = await getPublicationFromIds(idList).then(result => result)
+	return publications
+}
+
+// Any pubmed query
+async function getPubIdsforQuery(query, limit=150) {
+	// Return a list of the latest *limit* publications for a Pubmed query
+	const path = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${query}&retmax=${limit}&retmode=json`
+	const idList = await d3.json(path).then(data => data.esearchresult.idlist);
+	return idList.slice(0, limit)
+}
+
+async function getCitationsForQuery(query, limit=150){
+	const idList = await getPubIdsforQuery(query, limit).then(result => {console.log(result); return result})
+	const publications = await getPublicationFromIds(idList).then(result => result)
+	return publications
+}
+
+// Common
 async function getPublicationFromIds(idList) {
 	// Return a list of publications from a list of publications IDs
 	let publications = []
@@ -21,16 +43,49 @@ async function getPublicationFromIds(idList) {
 	return publications
 }
 
-async function getCitationsForAuthor(author){
-	const idList = await getPubIdsforAuthor(author).then(result => result)
-	const publications = await getPublicationFromIds(idList).then(result => result)
-	return publications
-}
+// async function getAuthorGraphFromQuery(queryList, width=500, height=500, max=400, queryFunc=getCitationsForQuery){
+
+// 	const allPromises = queryList.map(author => queryFunc(author))
+// 	const publications = await Promise.all(allPromises).then(values => [].concat(...values))
 
 
-async function getAuthorGraph(authorList, width=500, height=500){
 
-	const allPromises = authorList.map(author => getCitationsForAuthor(author))
+// 	// all pairs of authors per publications
+// 	const authorshipMap = publications.map(pub => getCombinationsOfSize(pub.authors, 2, "name"))
+// 	// all pairs of authors in one array
+// 	const mergeAuthorshipMap = [].concat(...authorshipMap);
+// 	// graph
+// 	const authorConnections = mergeAuthorshipMap.reduce((authorPairs, authors) => {
+// 		const key = `${authors[0].replace(/\s+/g, '')}_${authors[1].replace(/\s+/g, '')}`
+// 		authorPairs[key] =  authorPairs[key] ? authorPairs[key]+1 : 1
+// 		return authorPairs
+// 	}, {})
+
+// 	// number of publications per author
+// 	const authorPub = publications.reduce((authorSet, publication) => {
+// 		const names = publication.authors.map(author => author.name.replace(/\s+/g, ''))
+// 		for (let i=0; i<names.length; i++){
+// 			authorSet[names[i]] = authorSet[names[i]] ? authorSet[names[i]]+1 : 1
+// 		}
+// 		return authorSet
+// 	}, {})
+
+
+// 	return {
+// 		edges: Object.keys(authorConnections).map(key => {
+// 			const [author1, author2] = [...key.split("_")]
+// 			return {id: key, pair: [author1, author2], source: author1, target: author2, size: authorConnections[key]}
+// 		}),
+// 		nodes: Object.keys(authorPub).map(author => {
+// 			return {id: author, size: authorPub[author], x: Math.random()*width, y: Math.random()*height}
+// 		})
+// 	}
+// }
+
+
+async function getAuthorGraphFromQuery(queryList, width=500, height=500, queryFunc=getCitationsForQuery, max=400){
+
+	const allPromises = queryList.map(author => queryFunc(author))
 	const publications = await Promise.all(allPromises).then(values => [].concat(...values))
 
 
@@ -55,12 +110,27 @@ async function getAuthorGraph(authorList, width=500, height=500){
 		return authorSet
 	}, {})
 
+	// keep only the top *max* top connections
+	const authorConnectionsFiltered = Object.entries(authorConnections)
+		.sort((a, b) => b[1]-a[1])
+		.slice(0, max)	
+		.reduce((authorPairs, pair) => {
+			authorPairs[pair[0]] =  pair[1]
+			return authorPairs
+		}, {})
+	// keep only authors present in those top connections
+	const authorsFiltered = Object.keys(authorConnectionsFiltered).reduce((authorList, key) => {
+		[...key.split("_")].forEach(d => authorList.add(d))
+		return authorList
+	}, new Set())
+
+
 	return {
-		edges: Object.keys(authorConnections).map(key => {
+		edges: Object.keys(authorConnectionsFiltered).map(key => {
 			const [author1, author2] = [...key.split("_")]
-			return {id: key, pair: [author1, author2], source: author1, target: author2, size: authorConnections[key]}
+			return {id: key, pair: [author1, author2], source: author1, target: author2, size: authorConnectionsFiltered[key]}
 		}),
-		nodes: Object.keys(authorPub).map(author => {
+		nodes: [...authorsFiltered].map(author => {
 			return {id: author, size: authorPub[author], x: Math.random()*width, y: Math.random()*height}
 		})
 	}
@@ -149,7 +219,7 @@ function getVals(){
   if( slide1 > slide2 ){ var tmp = slide2; slide2 = slide1; slide1 = tmp; }
   
   var displayElement = parent.getElementsByClassName("rangeValues")[0];
-      displayElement.innerHTML = slide1 + " - " + slide2;
+      displayElement.innerHTML = slide1 + " / " + slide2;
 }
 
 window.onload = function(){
@@ -166,5 +236,3 @@ window.onload = function(){
         }
       }
 }
-
-    

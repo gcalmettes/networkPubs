@@ -45,7 +45,10 @@
       <div> 
         <h1>Want to see a network?</h1><br>
         <p align="left">
-          Science is all about collaborations. Type the name of an author (or a list of authors) and see with whom they have published! (separate authors by a semicolon if more than one author entered).
+          Science is all about collaborations. Enter a formatted Pubmed query and get the network of the authors associated with the top results of this query! For example, if you want to see with whom an auhor has collaborated, enter the pubmed query for the author's name (e.g.: "lastname firstname[Author]") and see with whom they have published!
+        </p>
+        <p align="left" style="color: #b4b4b4">
+          Note: Depending on the number of results to analyze, it might take several seconds for the network to be constructed and appear.
         </p>
       </div>
     </div>
@@ -56,7 +59,7 @@
       <!-- Request the URL -->
       <form action="javascript:getData();">
         <div class="form-group col-md-6">
-          <input type="text" id="authorList" name='authorList' placeholder="Enter the authors to look up here"><br>
+          <input type="text" id="querySearch" name='querySearch' placeholder="Enter the authors to look up here"><br>
         </div>
       
         <div>
@@ -96,6 +99,8 @@
 
     </div>
     <br>
+
+
     <div id="viz" width="100%"></div>
 
 
@@ -105,9 +110,8 @@
 	
 		<script type="text/javascript">
 			function getData(){
-				const authorList = document.querySelector("#authorList").value.split(";")
-					// showMeTheGraphForFile("data/jim.txt")
-          showMeTheGraphFor(authorList)
+        const queryList = document.querySelector("#querySearch").value
+          showMeTheGraphFor([queryList])
 			}
 		</script>
     <style>

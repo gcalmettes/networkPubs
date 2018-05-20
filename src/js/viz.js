@@ -24,7 +24,7 @@ sizeStrengthSlider.on("input", function () {
 // scales for nodes and links
 const nodeScale = d3.scaleLinear().range([2, 20])
 const labelScale = d3.scaleLinear().range([0.4, 1])
-const edgeScale = d3.scaleLinear().range([0.01, 8])
+const edgeScale = d3.scaleLinear().range([1, 10])
 const opacityScale = d3.scaleLinear().range([1, 1])
 const nodeColorScale = d3.scaleSequential(d3.interpolateCool)
 const edgeColorScale = d3.scaleSequential(d3.interpolatePuRd)
@@ -60,10 +60,10 @@ function showMeTheGraphForFile(fileName){
   });
 }
 
-function showMeTheGraphFor(authorsList){
-  // get the data and draw graph
-  getAuthorGraph(authorsList, width, height).then(graphData => {
+function showMeTheGraphFor(queryList){
 
+  // get the data and draw graph
+  getAuthorGraphFromQuery(queryList, width, height, queryFunc=getCitationsForQuery, max=400).then(graphData => {
     // const toSave = JSON.stringify(graphData)
     // downloadToJSON(toSave, 'network_file.txt', 'text/plain');
 
