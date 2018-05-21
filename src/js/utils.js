@@ -21,7 +21,7 @@ async function getPubIdsforQuery(query, limit=150) {
 }
 
 async function getCitationsForQuery(query, limit=150){
-	const idList = await getPubIdsforQuery(query, limit).then(result => {console.log(result); return result})
+	const idList = await getPubIdsforQuery(query, limit).then(result =>  result)
 	const publications = await getPublicationFromIds(idList).then(result => result)
 	return publications
 }
