@@ -54,6 +54,8 @@ function showMeTheGraphForFile(fileName){
   d3.json(fileName).then(graphData => {
 
     graph = graphData
+    // ascending order for graph.edges so thicher edges will be drawn on top
+    graph.edges.sort((a, b) => a.size-b.size)
     render();
     simulation.alphaTarget(0.3).restart()
     console.log("Enjoy!")
@@ -68,6 +70,8 @@ function showMeTheGraphFor(queryList){
     // downloadToJSON(toSave, 'network_file.txt', 'text/plain');
 
     graph = graphData
+    // ascending order for graph.edges so thicher edges will be drawn on top
+    graph.edges.sort((a, b) => a.size-b.size)
     render();
     simulation.alphaTarget(0.3).restart()
     console.log("Enjoy!")
