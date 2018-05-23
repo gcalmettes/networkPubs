@@ -122,6 +122,7 @@ function drawScene(graph, container, props) {
               ctx.backingStorePixelRatio || 1;
     return dpr / bsr;
   })();
+  let ratio // optionally set this variable to something, e.g.: 4
   if (!ratio) { ratio = PIXEL_RATIO; }
 
   let canvas = container.selectAll('canvas').data([null]);
