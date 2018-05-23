@@ -57,7 +57,9 @@ const sizeStrengthScale = d3.scaleLinear()
 const simulation = d3.forceSimulation()
   .force("link", d3.forceLink().id(d => d.id).strength(d => linkStrengthScale(+d.size)))
   .force("charge", d3.forceManyBody().strength(d => sizeStrengthScale(+d.size)))
-  .force("center", d3.forceCenter(width / 2, height / 2));
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  // .force("centerX", d3.forceX(width / 2).strength(0.01))
+  // .force("centerY", d3.forceX(height / 2).strength(0.01))
 
 
 // For development purpose, can use pre-saved data
@@ -77,7 +79,7 @@ function showMeTheGraphForFile(fileName){
 function showMeTheGraphFor(queryList){
 
   // get the data and draw graph
-  getAuthorGraphFromQuery(queryList, width, height, queryFunc=getCitationsForQuery, max=400).then(graphData => {
+  getAuthorGraphFromQuery(queryList, width, height, queryFunc=getCitationsForQuery, filterMax=false, max=400).then(graphData => {
     // const toSave = JSON.stringify(graphData)
     // downloadToJSON(toSave, 'network_file.txt', 'text/plain');
 
@@ -120,7 +122,6 @@ function drawScene(graph, container, props) {
               ctx.backingStorePixelRatio || 1;
     return dpr / bsr;
   })();
-  let ratio=2
   if (!ratio) { ratio = PIXEL_RATIO; }
 
   let canvas = container.selectAll('canvas').data([null]);
@@ -137,7 +138,11 @@ function drawScene(graph, container, props) {
   ///////////////////////////////////////////////
 
 
-  simulation.force("center", d3.forceCenter(width / 2, height / 2));
+  simulation
+    .force("center", d3.forceCenter(width / 2, height / 2));
+  // simulation
+  //   .force("centerX", d3.forceX(width / 2).strength(0.01))
+  //   .force("centerY", d3.forceX(height / 2).strength(0.01))
   simulation
     .nodes(graph.nodes)
     .on("tick", ticked);
@@ -166,7 +171,6 @@ function dragsubject() {
     return simulation.find(d3.event.x, d3.event.y);
 }
 function dragstarted() {
-  console.log(d3.event.subject)
   if (!d3.event.active) simulation.alphaTarget(0.3).restart();
   d3.event.subject.fx = d3.event.subject.x;
   d3.event.subject.fy = d3.event.subject.y;
