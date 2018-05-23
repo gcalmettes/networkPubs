@@ -5,8 +5,14 @@ let linkStrengthSliderRange = Array.prototype.map.call(linkStrengthSlider.select
 linkStrengthSlider.on("input", function () {
     linkStrengthSliderRange = Array.prototype.map.call(linkStrengthSlider.selectAll("input")._groups[0], getSliderCurrentVals)
     linkStrengthScale.range(linkStrengthSliderRange)
+    // update simulation with new scales and relaunch
+    updateScaleRanges(graph)
+    simulation
+      .nodes(graph.nodes)
+      .on("tick", ticked);
+    simulation.force("link")
+      .links(graph.edges)
     simulation.alphaTarget(0.3).restart()
-    render()
 });
 
 
@@ -16,14 +22,20 @@ let sizeStrengthSliderRange = Array.prototype.map.call(sizeStrengthSlider.select
 sizeStrengthSlider.on("input", function () {
     sizeStrengthSliderRange = Array.prototype.map.call(sizeStrengthSlider.selectAll("input")._groups[0], getSliderCurrentVals)
     sizeStrengthScale.range(sizeStrengthSliderRange.reverse())
+    // update simulation with new scales and relaunch
+    updateScaleRanges(graph)
+    simulation
+      .nodes(graph.nodes)
+      .on("tick", ticked);
+    simulation.force("link")
+      .links(graph.edges)
     simulation.alphaTarget(0.3).restart()
-    render()
 });
 
 
 // scales for nodes and links
 const nodeScale = d3.scaleLinear().range([2, 20])
-const labelScale = d3.scaleLinear().range([0.4, 1])
+const labelScale = d3.scaleLinear().range([6, 20])
 const edgeScale = d3.scaleLinear().range([1, 10])
 const opacityScale = d3.scaleLinear().range([1, 1])
 const nodeColorScale = d3.scaleSequential(d3.interpolateCool)
@@ -94,51 +106,36 @@ function drawScene(graph, container, props) {
 
   updateScaleRanges(graph)
 
-  // canvas for drawing edges
+  //////////////////////////////////////////////////////
+  // Create canvas but with increased resolution
+  // so text looks crisp! 
+  // see https://stackoverflow.com/questions/15661339/how-do-i-fix-blurry-text-in-my-html5-canvas
+  let PIXEL_RATIO = (function () {
+    let ctx = document.createElement("canvas").getContext("2d"),
+        dpr = window.devicePixelRatio || 1,
+        bsr = ctx.webkitBackingStorePixelRatio ||
+              ctx.mozBackingStorePixelRatio ||
+              ctx.msBackingStorePixelRatio ||
+              ctx.oBackingStorePixelRatio ||
+              ctx.backingStorePixelRatio || 1;
+    return dpr / bsr;
+  })();
+  let ratio=2
+  if (!ratio) { ratio = PIXEL_RATIO; }
+
   let canvas = container.selectAll('canvas').data([null]);
   canvas = canvas.enter().append("canvas")
     .merge(canvas)
-      .attr("width", width)
-      .attr("height", height);
-  context = canvas.node()
-    .getContext("2d");
+      .attr("width", width*ratio) // *ratio
+      .attr("height", height*ratio) //*ratio
+    .node()
 
-  // svg for nodes so tracking is possible  
-  let svg = container.selectAll('svg').data([null]);
-  svg = svg.enter().append('svg')
-    .merge(svg)
-      .attr('width', width)
-      .attr('height', height);
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+  context = canvas.getContext("2d")
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ///////////////////////////////////////////////
 
-  nodes = svg.selectAll(".node").data(graph.nodes)
-  nodes.exit().remove()
-  
-  nodesEnter = nodes.enter().append("g")
-      .attr("class", "node")
-  nodesEnter.append("circle")
-      .attr("class", "nodeCircle")
-      .attr("r", d => nodeScale(d.size))
-      .attr("fill", d => nodeColorScale(d.size))
-  nodesEnter.append("text")
-      .attr("class", "nodeLabel")
-      .attr("dx", 0)
-      .attr("dy", 15)
-      .style("text-anchor", "middle")
-      .text(d => d.id)
-      .style("font-size", d => `${labelScale(d.size)}em`)
-      
-  
-  nodesMerge = nodesEnter.merge(nodes)
-  nodesMerge.select(".nodeCircle")
-      .attr("r", d => nodeScale(d.size))
-      .attr("fill", d => nodeColorScale(d.size))
-  nodesMerge.select(".nodeLabel")
-      .text(d => d.id)
-      .style("font-size", d => `${labelScale(d.size)}em`)
-  nodesMerge.call(d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
 
   simulation.force("center", d3.forceCenter(width / 2, height / 2));
   simulation
@@ -146,64 +143,81 @@ function drawScene(graph, container, props) {
     .on("tick", ticked);
   simulation.force("link")
     .links(graph.edges);
-  // simulation.alphaTarget(0.3).restart()
 
-  // draw links
-  context.clearRect(0, 0, width, height);
-  graph.edges.forEach(d => {
 
-    // keep the nodes within the boundaries of the svg
-    d.target.x = d.target.x < 0 ? 0 : d.target.x > width ? width : d.target.x
-    d.target.y = d.target.y < 0 ? 0 : d.target.y > height ? height : d.target.y
-    d.source.x = d.source.x < 0 ? 0 : d.source.x > width ? width : d.source.x
-    d.source.y = d.source.y < 0 ? 0 : d.source.y > height ? height : d.source.y
-
-    const dx = d.target.x - d.source.x,
-          dy = d.target.y - d.source.y
-    const dr = Math.sqrt(dx * dx + dy * dy);
-
-    context.strokeStyle = edgeColorScale(d.size);
-
-    context.beginPath();
-    const p = new Path2D(`M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`);
-    context.lineWidth = edgeScale(d.size)
-    context.stroke(p);
-  });
+  d3.select(canvas)
+    .call(d3.drag()
+        .container(canvas)
+        .subject(dragsubject)
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
 
 }
 
-
+//////
 function ticked() {
-  // update nodes
-  nodesMerge
-    .attr("transform", d => {
-      // keep the node within the boundaries of the svg
-      d.x = d.x < 0 ? 0 : d.x > width ? width : d.x
-      d.y = d.y < 0 ? 0 : d.y > height ? height : d.y
-      return `translate(${d.x}, ${d.y})`
-    })
+    context.clearRect(0, 0, width, height);
+    graph.edges.forEach(drawEdges);
+    graph.nodes.forEach(drawNode);
+}
 
-  // draw links
-  context.clearRect(0, 0, width, height);
-  graph.edges.forEach(d => {
+function dragsubject() {
+    return simulation.find(d3.event.x, d3.event.y);
+}
+function dragstarted() {
+  console.log(d3.event.subject)
+  if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+  d3.event.subject.fx = d3.event.subject.x;
+  d3.event.subject.fy = d3.event.subject.y;
+}
 
-    // keep the nodes within the boundaries of the svg
-    d.target.x = d.target.x < 0 ? 0 : d.target.x > width ? width : d.target.x
-    d.target.y = d.target.y < 0 ? 0 : d.target.y > height ? height : d.target.y
-    d.source.x = d.source.x < 0 ? 0 : d.source.x > width ? width : d.source.x
-    d.source.y = d.source.y < 0 ? 0 : d.source.y > height ? height : d.source.y
+function dragged() {
+  d3.event.subject.fx = d3.event.x;
+  d3.event.subject.fy = d3.event.y;
+}
 
-    const dx = d.target.x - d.source.x,
-          dy = d.target.y - d.source.y
-    const dr = Math.sqrt(dx * dx + dy * dy);
+function dragended() {
+  if (!d3.event.active) simulation.alphaTarget(0);
+  d3.event.subject.fx = null;
+  d3.event.subject.fy = null;
+}
 
-    context.strokeStyle = edgeColorScale(d.size);
+function drawEdges(d) {
+  // keep the nodes within the boundaries of the canvas
+  d.target.x = d.target.x < 0 ? 0 : d.target.x > width ? width : d.target.x
+  d.target.y = d.target.y < 0 ? 0 : d.target.y > height ? height : d.target.y
+  d.source.x = d.source.x < 0 ? 0 : d.source.x > width ? width : d.source.x
+  d.source.y = d.source.y < 0 ? 0 : d.source.y > height ? height : d.source.y
 
-    context.beginPath();
-    const p = new Path2D(`M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`);
-    context.lineWidth = edgeScale(d.size)
-    context.stroke(p);
-  });
+  const dx = d.target.x - d.source.x,
+        dy = d.target.y - d.source.y
+  const dr = Math.sqrt(dx * dx + dy * dy);
+
+  context.strokeStyle = edgeColorScale(d.size);
+
+  context.beginPath();
+  const p = new Path2D(`M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`);
+  context.lineWidth = edgeScale(d.size)
+  context.stroke(p);
+}
+
+function drawNode(d) {
+  context.moveTo(d.x + 3, d.y);
+  context.beginPath();
+  context.fillStyle = nodeColorScale(d.size)
+  context.strokeStyle = "black";
+  context.lineWidth = 1
+  context.arc(d.x, d.y, nodeScale(d.size), 0, 2 * Math.PI);
+  context.fill();
+  context.stroke();
+
+  context.font = `${labelScale(d.size)}px Raleway`
+  context.fillStyle = "black" //"#BFBFBF";
+  context.textAlign = "center";
+  context.textBaseline = "middle"; 
+  context.fillText(`${d.id}`, d.x, d.y-nodeScale(d.size));
+            
 }
 
 function updateScaleRanges(graph){
@@ -220,23 +234,6 @@ function updateScaleRanges(graph){
     .domain(d3.extent(graph.edges, d => d.size))
   sizeStrengthScale
     .domain(d3.extent(graph.nodes, d => d.size))
-}
-
-function dragstarted(d) {
-  if (!d3.event.active) simulation.alphaTarget(0.8).restart();
-  d.fx = d.x;
-  d.fy = d.y;
-}
-
-function dragged(d) {
-  d.fx = d3.event.x;
-  d.fy = d3.event.y;
-}
-
-function dragended(d) {
-  if (!d3.event.active) simulation.alphaTarget(0);
-  d.fx = null;
-  d.fy = null;
 }
 
 
