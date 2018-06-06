@@ -102,6 +102,7 @@
 
 
     <div id="viz" width="100%"></div>
+    <div id="waiting" style="opacity: 0">Your request is processing! This can take a <span style="color: #E01A25;"><em><b>looooooong</b></em></span> time, please hang tight :)</div>
 
 
     <script src="https://d3js.org/d3.v5.min.js"></script>
@@ -111,6 +112,7 @@
 		<script type="text/javascript">
 			function getData(){
         const queryList = document.querySelector("#querySearch").value
+        document.querySelector("#waiting").style.opacity="1"
           showMeTheGraphFor([queryList])
 			}
 		</script>
@@ -119,6 +121,7 @@
     canvas {
     	position: absolute;
     	margin: 0;
+      border:1px solid #000000;
     }
 
     </style>

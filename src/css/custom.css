@@ -5,6 +5,15 @@
   font-size: 20px;
 }
 
+#waiting{
+    margin: auto;
+    width: 60%;
+    font-family: monospace;
+    text-align: center;
+    margin-top: 20px;
+    font-size: 1.5em;
+}
+
 body {
   padding-top: 25px;
   width: 90%;

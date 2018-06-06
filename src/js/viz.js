@@ -73,6 +73,8 @@ function showMeTheGraphForFile(fileName){
     render();
     simulation.alphaTarget(0.3).restart()
     console.log("Enjoy!")
+    // hide waiting message
+    document.querySelector("#waiting").style.opacity="0"
   });
 }
 
@@ -89,6 +91,8 @@ function showMeTheGraphFor(queryList){
     render();
     simulation.alphaTarget(0.3).restart()
     console.log("Enjoy!")
+    // hide waiting message
+    document.querySelector("#waiting").style.opacity="0"
   });
 }
 
