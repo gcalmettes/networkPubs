@@ -41,7 +41,7 @@ const opacityScale = d3.scaleLinear().range([1, 1])
 const nodeColorScale = d3.scaleSequential(d3.interpolateCool)
 const edgeColorScale = d3.scaleSequential(d3.interpolatePuRd)
 
-let nodes, graph, context, 
+let nodes, graph, context,  canvas,
     width = document.querySelector("#viz").clientWidth
 
 const viz = d3.select('#viz'),
@@ -58,61 +58,10 @@ const simulation = d3.forceSimulation()
   .force("link", d3.forceLink().id(d => d.id).strength(d => linkStrengthScale(+d.size)))
   .force("charge", d3.forceManyBody().strength(d => sizeStrengthScale(+d.size)))
   .force("center", d3.forceCenter(width / 2, height / 2))
-  // .force("centerX", d3.forceX(width / 2).strength(0.01))
-  // .force("centerY", d3.forceX(height / 2).strength(0.01))
 
 
-// For development purpose, can use pre-saved data
-function showMeTheGraphForFile(fileName){
-  // get the data and draw graph
-  d3.json(fileName).then(graphData => {
-
-    graph = graphData
-    // ascending order for graph.edges so thicher edges will be drawn on top
-    graph.edges.sort((a, b) => a.size-b.size)
-    render();
-    simulation.alphaTarget(0.3).restart()
-    console.log("Enjoy!")
-    // hide waiting message
-    document.querySelector("#waiting").style.opacity="0"
-  });
-}
-
-function showMeTheGraphFor(queryList){
-
-  // get the data and draw graph
-  getAuthorGraphFromQuery(queryList, width, height, queryFunc=getCitationsForQuery, filterMax=false, max=400).then(graphData => {
-    // const toSave = JSON.stringify(graphData)
-    // downloadToJSON(toSave, 'network_file.txt', 'text/plain');
-
-    graph = graphData
-    // ascending order for graph.edges so thicher edges will be drawn on top
-    graph.edges.sort((a, b) => a.size-b.size)
-    render();
-    simulation.alphaTarget(0.3).restart()
-    console.log("Enjoy!")
-    // hide waiting message
-    document.querySelector("#waiting").style.opacity="0"
-  });
-}
-
-// render on window resize
-window.addEventListener('resize', render);
-
-function render() {
-  width = document.querySelector("#viz").clientWidth
-  drawScene(graph, viz, {
-    width: width,
-    height: height
-  });
-}
-
-function drawScene(graph, container, props) {
-  const { width, height } = props;
-
-  updateScaleRanges(graph)
-
-  //////////////////////////////////////////////////////
+function createCanvas(container, ratio){
+	//////////////////////////////////////////////////////
   // Create canvas but with increased resolution
   // so text looks crisp! 
   // see https://stackoverflow.com/questions/15661339/how-do-i-fix-blurry-text-in-my-html5-canvas
@@ -126,7 +75,7 @@ function drawScene(graph, container, props) {
               ctx.backingStorePixelRatio || 1;
     return dpr / bsr;
   })();
-  let ratio // optionally set this variable to something, e.g.: 4
+  // let ratio // optionally set this variable to something, e.g.: 4
   if (!ratio) { ratio = PIXEL_RATIO; }
 
   let canvas = container.selectAll('canvas').data([null]);
@@ -141,13 +90,47 @@ function drawScene(graph, container, props) {
   context = canvas.getContext("2d")
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   ///////////////////////////////////////////////
+  return canvas
+}
+
+async function buildNetwork(query = "calmettes[author]", limit=60, filterMax=false){
+	canvas = createCanvas(viz)
+
+	const iterator = getResultIterator(query, limit)
+	let publications = []
+	for await(const pub of iterator) {
+		publications.push(pub)
+		const graphData = constructGraph(publications, graph, width, height, filterMax)
+    graph = graphData
+    // console.log(graph)
+		// ascending order for graph.edges so thicher edges will be drawn on top
+	    graph.edges.sort((a, b) => a.size-b.size)
+	    render();
+	    //simulation.alphaTarget(0.3).restart()
+	    // document.querySelector("#waiting").style.opacity="0"
+	}
+}
+
+
+// render on window resize
+window.addEventListener('resize', render);
+
+function render() {
+  width = document.querySelector("#viz").clientWidth
+  drawScene(graph, viz, {
+    width: width,
+    height: height
+  });
+}
+
+function drawScene(graph, container, props) {
+  const { width, height } = props;
+  updateScaleRanges(graph)
 
 
   simulation
     .force("center", d3.forceCenter(width / 2, height / 2));
-  // simulation
-  //   .force("centerX", d3.forceX(width / 2).strength(0.01))
-  //   .force("centerY", d3.forceX(height / 2).strength(0.01))
+  
   simulation
     .nodes(graph.nodes)
     .on("tick", ticked);
@@ -157,11 +140,12 @@ function drawScene(graph, container, props) {
 
   d3.select(canvas)
     .call(d3.drag()
-        .container(canvas)
-        .subject(dragsubject)
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
+      .container(canvas)
+      .subject(dragsubject)
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended));
+  simulation.alphaTarget(0.3).restart()
 
 }
 
