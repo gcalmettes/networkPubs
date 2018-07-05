@@ -48,7 +48,7 @@
           Science is all about collaborations. Enter a formatted Pubmed query and get the network of the authors associated with the top results of this query! For example, if you want to see with whom an auhor has collaborated, enter the pubmed query for the author's name (e.g.: "lastname firstname[Author]") and see with whom they have published!
         </p>
         <p align="left" style="color: #b4b4b4">
-          Note: Depending on the number of results to analyze, it might take several seconds for the network to be constructed and appear, hang tight!
+          Note: This app make use of recent javascript features and will only work in browsers (e.g.: Chrome, Safari Preview) supporting them.
         </p>
       </div>
     </div>
@@ -102,8 +102,6 @@
 
 
     <div id="viz" width="100%"></div>
-    <div id="waiting" style="opacity: 0">Your request is processing! This can take a <span style="color: #E01A25;"><em><b>looooooong</b></em></span> time, please hang tight :)</div>
-
 
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="src/js/utils.js"></script>
@@ -112,8 +110,7 @@
 		<script type="text/javascript">
 			function getData(){
         const queryList = document.querySelector("#querySearch").value
-        document.querySelector("#waiting").style.opacity="1"
-          showMeTheGraphFor([queryList])
+        buildNetwork(queryList)
 			}
 		</script>
     <style>

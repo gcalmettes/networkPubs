@@ -1,53 +1,46 @@
-// Only authors authorized as Pubmed query
-async function getPubIdsforAuthor(author, limit=60) {
-	// Return a list of publications IDs for the given author
-	const path = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${author}[author]&&retmax=${limit}&retmode=json`
-	const idList = await d3.json(path).then(data => data.esearchresult.idlist);
-	return idList
-}
-
-async function getCitationsForAuthor(author, limit=60){
-	const idList = await getPubIdsforAuthor(author, limit).then(result => result)
-	const publications = await getPublicationFromIds(idList).then(result => result)
-	return publications
-}
-
-// Any pubmed query
-async function getPubIdsforQuery(query, limit=60) {
-	// Return a list of the latest *limit* publications for a Pubmed query
+function retrievePubmedQuery(query, limit=60){
 	const path = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${query}&retmax=${limit}&retmode=json`
-	const idList = await d3.json(path).then(data => data.esearchresult.idlist);
-	return idList.slice(0, limit)
+	return fetch(path)
+		.then(response => response.json())
+		.then(data => data.esearchresult.idlist)
 }
 
-async function getCitationsForQuery(query, limit=60){
-	const idList = await getPubIdsforQuery(query, limit).then(result => result)
-	const publications = await getPublicationFromIds(idList).then(result => result)
-	return publications
-}
+// function getResultIterator2(query, limit=60){
+// 	return {
+//     [Symbol.asyncIterator]: async function*() {
+//     	const idList = await retrievePubmedQuery(query, limit)
+//         for (const id of idList) {
+//         	const path =`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`
+//         	const summary = await fetch(path)
+//         		.then(response => response.json())
+//         		.then(summary => ({
+//         			title: summary.result[id].title,
+// 							authors: summary.result[id].authors,
+// 							uid: summary.result[id].uid
+//         		}))
+//           yield summary
+//         }
+//       }
+//     }
+// }
 
-// Common
-async function getPublicationFromIds(idList) {
-	// Return a list of publications from a list of publications IDs
-	let publications = []
-	for (let i=0; i<idList.length; i++) {
-		const id = idList[i]
+async function* getResultIterator(query, limit=60){
+  const idList = await retrievePubmedQuery(query, limit)
+	for await (const id of idList) {
 		const path =`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`
-		const summary = await d3.json(path).then(result => result);
-		publications.push({
+		const summary = await fetch(path)
+			.then(response => response.json())
+			.then(summary => ({
 				title: summary.result[id].title,
 				authors: summary.result[id].authors,
 				uid: summary.result[id].uid
-			})
+			}))
+	  yield summary
 	}
-	return publications
 }
 
-async function getAuthorGraphFromQuery(queryList, width=500, height=500, queryFunc=getCitationsForQuery, filterMax=false, max=400){
 
-	const allPromises = queryList.map(author => queryFunc(author))
-	const publications = await Promise.all(allPromises).then(values => [].concat(...values))
-
+function constructGraph(publications, previousGraph, width, height, filterMax){
 	// all pairs of authors per publications
 	const authorshipMap = publications.map(pub => getCombinationsOfSize(pub.authors, 2, "name"))
 	// all pairs of authors in one array
@@ -70,7 +63,6 @@ async function getAuthorGraphFromQuery(queryList, width=500, height=500, queryFu
 
 	let authorConnectionsFiltered = authorConnections
 	let authorsFiltered = Object.keys(authorPub)
-
 	if (filterMax){
 		console.log("keeping only the top connections!")
 		// keep only the top *max* top connections
@@ -94,7 +86,11 @@ async function getAuthorGraphFromQuery(queryList, width=500, height=500, queryFu
 			return {id: key, pair: [author1, author2], source: author1, target: author2, size: authorConnectionsFiltered[key]}
 		}),
 		nodes: [...authorsFiltered].map(author => {
-			return {id: author, size: authorPub[author], x: Math.random()*width, y: Math.random()*height}
+			let authorNode
+			if (previousGraph) authorNode = previousGraph.nodes.filter(d => d.id == author)[0]
+			// return {id: author, size: authorPub[author], x: Math.random()*width, y: Math.random()*height}
+			// return {id: author, size: authorPub[author]}
+			return {id: author, size: authorPub[author], x: authorNode ? authorNode.x : Math.random()*width, y: authorNode ? authorNode.y : Math.random()*height}
 		})
 	}
 }
