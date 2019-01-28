@@ -24,11 +24,16 @@ function retrievePubmedQuery(query, limit=60){
 //     }
 // }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function* getResultIterator(query, limit=60){
   const idList = await retrievePubmedQuery(query, limit)
 	for await (const id of idList) {
 		const path =`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${id}&retmode=json`
-		const summary = await fetch(path)
+		await sleep(300)
+    const summary = await fetch(path)
 			.then(response => response.json())
 			.then(summary => ({
 				title: summary.result[id].title,
